@@ -18,6 +18,7 @@ using System.IO.Compression;
 
 namespace vkqlisteditor.editor;
 
+using System.Diagnostics;
 using System.Text.Json;
 using Terminal.Gui;
 
@@ -57,7 +58,73 @@ public static class MenuCommands
             AarTemplate.CreateProjectTemplate(vkqPath, templatePath);
         }
     }
-    
+
+    public static void ExportCsv(RuntimeData runtimeData)
+    {
+        var aTypes = new List<string>() { ".csv" };
+        var sd = new SaveDialog("Export CSV files", "Choose a directory and base filename for the CSV files", aTypes);
+        sd.DirectoryPath = runtimeData.UserPreferences.GetLastUsedPath();
+        sd.FilePath = Path.Combine(runtimeData.UserPreferences.GetLastUsedPath(), "vkq.csv");
+        Application.Run(sd);
+
+        if (sd.Canceled || sd.FilePath == null)
+            return;
+        string? pathString = sd.FilePath.ToString();
+        if (pathString == null)
+            return;
+        var pathDirectory = Path.GetDirectoryName(pathString);
+        if (pathDirectory != null)
+            runtimeData.UserPreferences.SetLastUsedPath(pathDirectory);
+
+        Debug.Assert(null != pathDirectory);
+        var fileName = Path.GetFileNameWithoutExtension(pathString);
+
+        var deviceListCsvPath = Path.Combine(pathDirectory, $"{fileName}_device_list.csv");
+        using (var fs = new StreamWriter(deviceListCsvPath)) {
+            fs.WriteLine("brand,device,min_api,device_version");
+            foreach (var item in runtimeData.DeviceAllowList) {
+                fs.WriteLine("{0},{1},{2},{3}", item.Brand, item.Device, item.MinApi, item.DriverVersion);
+            }
+            fs.Close();
+        }
+
+        var gpuAllowCsvPath = Path.Combine(pathDirectory, $"{fileName}_gpu_allow.csv");
+        using (var fs = new StreamWriter(gpuAllowCsvPath)) {
+            fs.WriteLine("device,device_id,vendor_id,min_api,device_version");
+            foreach (var item in runtimeData.GpuPredictAllowList) {
+                fs.WriteLine("{0},{1},{2},{3},{4}", item.DeviceName, item.DeviceId, item.VendorId, item.MinApi, item.DriverVersion);
+            }
+            fs.Close();
+        }
+
+        var gpuDenyCsvPath = Path.Combine(pathDirectory, $"{fileName}_gpu_deny.csv");
+        using (var fs = new StreamWriter(gpuDenyCsvPath)) {
+            fs.WriteLine("device,device_id,vendor_id,min_api,device_version");
+            foreach (var item in runtimeData.GpuPredictDenyList) {
+                fs.WriteLine("{0},{1},{2},{3},{4}", item.DeviceName, item.DeviceId, item.VendorId, item.MinApi, item.DriverVersion);
+            }
+            fs.Close();
+        }
+
+        var socAllowCsvPath = Path.Combine(pathDirectory, $"{fileName}_soc_allow.csv");
+        using (var fs = new StreamWriter(socAllowCsvPath)) {
+            fs.WriteLine("soc,device_fingerprint");
+            foreach (var item in runtimeData.DriverAllowList) {
+                fs.WriteLine("{0},{1}", item.Soc, item.DriverFingerprint);
+            }
+            fs.Close();
+        }
+
+        var socDenyCsvPath = Path.Combine(pathDirectory, $"{fileName}_soc_deny.csv");
+        using (var fs = new StreamWriter(socDenyCsvPath)) {
+            fs.WriteLine("soc,device_fingerprint");
+            foreach (var item in runtimeData.DriverDenyList) {
+                fs.WriteLine("{0},{1}", item.Soc, item.DriverFingerprint);
+            }
+            fs.Close();
+        }
+    }
+
     private static void DoSaveChangesDialog(RuntimeData runtimeData)
     {
         if (runtimeData is {MainProject: not null, ProjectNeedsSave: true})
@@ -210,6 +277,26 @@ public static class MenuCommands
 
         return null;
     }
+    private static string? SelectVkqFile(RuntimeData runtimeData, EditorWindow? editorWindow, string message)
+    {
+        var aTypes = new List<string>() { ".vkq" };
+        var open = new OpenDialog("Open VkQuality file", message, aTypes) { AllowsMultipleSelection = false };
+        open.DirectoryPath = runtimeData.UserPreferences.GetLastUsedPath();
+
+        Application.Run(open);
+
+        if (!open.Canceled) {
+            foreach (var path in open.FilePaths) {
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
+                    continue;
+                }
+
+                if (File.Exists(path)) return path;
+            }
+        }
+
+        return null;
+    }
 
     public static void ImportDeviceListCsv(RuntimeData runtimeData, EditorWindow? editorWindow)
     {
@@ -244,5 +331,12 @@ public static class MenuCommands
         var csvPath = SelectCsvFile(runtimeData, editorWindow, "Open a GPU deny list CSV file");
         if (string.IsNullOrEmpty(csvPath)) return;
         GpuListCsvImporter.ImportGpuListCsvFile(runtimeData, csvPath, false);
+    }
+
+    public static void ImportVkQuality(RuntimeData runtimeData, EditorWindow? editorWindow)
+    {
+        var dataPath = SelectVkqFile(runtimeData, editorWindow, "Open a vk quality data file");
+        if (string.IsNullOrEmpty(dataPath)) return;
+        VkQualityImporter.ImportVkQualityFile(runtimeData, dataPath);
     }
 }

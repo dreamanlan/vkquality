@@ -88,6 +88,8 @@ public class EditorGuiElements
             Key.E | Key.CtrlMask));
         menuItems.Add(new MenuItem("_Create .AAR Library Project", "", () => MenuCommands.ExportAar(runtimeData), null, null,
             Key.L | Key.CtrlMask));
+        menuItems.Add(new MenuItem("_Export .CSV Data File", "", () => MenuCommands.ExportCsv(runtimeData), null, null,
+            Key.D | Key.CtrlMask));
         return menuItems.ToArray ();
     }
 
@@ -102,6 +104,8 @@ public class EditorGuiElements
     {
         List<MenuItem []> menuItems = new List<MenuItem []> ();
         menuItems.Add (CreateImportCsvMenuItems(runtimeData));
+        menuItems.Add(new MenuItem[] { null });
+        menuItems.Add(CreateImportVkqMenuItems(runtimeData));
         return menuItems;
     }
 
@@ -116,7 +120,13 @@ public class EditorGuiElements
         menuItems.Add(new MenuItem("_Import GPU Deny CSV", "", () => MenuCommands.ImportGpuDenyListCsv(runtimeData, EditorMainWindow), null, null, Key.D5 | Key.CtrlMask));
         return menuItems.ToArray ();
     }
-    
+    private MenuItem[] CreateImportVkqMenuItems(RuntimeData runtimeData)
+    {
+        List<MenuItem> menuItems = new List<MenuItem>();
+        menuItems.Add(new MenuItem("_Import Vk Quality Data", "", () => MenuCommands.ImportVkQuality(runtimeData, EditorMainWindow), null, null, Key.D0 | Key.CtrlMask));
+        return menuItems.ToArray();
+    }
+
     private static string CreateAboutText()
     {
         var guiVersion = FileVersionInfo.GetVersionInfo(typeof(Terminal.Gui.Application).Assembly.Location)
